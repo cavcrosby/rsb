@@ -56,16 +56,17 @@ func RuleInRuleRegistry(ruleName string) (Rule, error) {
 }
 
 // Get some rules from the internal rule registry.
-func GetRegisteredRules(ruleNames *[]string, rulesFound *[]Rule) error {
-	for _, ruleName := range *ruleNames {
+func GetRegisteredRules(ruleNames []string) ([]Rule, error) {
+	var rulesFound []Rule
+	for _, ruleName := range ruleNames {
 		if rule, err := RuleInRuleRegistry(ruleName); err == nil {
-			*rulesFound = append(*rulesFound, rule)
+			rulesFound = append(rulesFound, rule)
 		} else {
-			return err
+			return rulesFound, err
 		}
 	}
 
-	return nil
+	return rulesFound, nil
 }
 
 // Get the internal rule registry.

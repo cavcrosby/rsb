@@ -108,7 +108,7 @@ func (pconfs *progConfigs) parseCmdArgs() {
 			continue
 		} else if val == "--" {
 			break
-		} else if stringInArr(val, &[]string{"-h", "-help", "--help"}) {
+		} else if stringInArr(val, []string{"-h", "-help", "--help"}) {
 			pconfs.helpFlagPassedIn = true
 		}
 	}
@@ -152,8 +152,8 @@ func (pconfs *progConfigs) parseCmdArgs() {
 }
 
 // Look to see if the string is in the string array.
-func stringInArr(strArg string, arr *[]string) bool {
-	for _, val := range *arr {
+func stringInArr(strArg string, arr []string) bool {
+	for _, val := range arr {
 		if val == strArg {
 			return true
 		}
@@ -165,28 +165,29 @@ func stringInArr(strArg string, arr *[]string) bool {
 // Retrieve the rules mentioned in the RuleConfigs, registering additional custom
 // configurations for each rule if specified. Configurations are specific to each
 // rule, meaning one configuration in one rule may not work in other rule.
-func getRules(rcs *[]RuleConfig, rules *[]rule.Rule) error {
-	for _, rc := range *rcs {
+func getRules(rcs []RuleConfig) ([]rule.Rule, error) {
+	var rules []rule.Rule
+	for _, rc := range rcs {
 		if len(rc.Configs) > 0 {
 			if configsData, err := json.Marshal(rc.Configs); err != nil {
-				return err
+				return rules, err
 			} else if rule, err := rule.RuleInRuleRegistry(rc.ID); err != nil {
-				return err
+				return rules, err
 			} else if err := rule.RegisterConfigs(configsData); err != nil {
-				return err
+				return rules, err
 			} else {
-				*rules = append(*rules, rule)
+				rules = append(rules, rule)
 			}
 		} else {
 			if rule, err := rule.RuleInRuleRegistry(rc.ID); err != nil {
-				return err
+				return rules, err
 			} else {
-				*rules = append(*rules, rule)
+				rules = append(rules, rule)
 			}
 		}
 	}
 
-	return nil
+	return rules, nil
 }
 
 // func matchRules(rules *[]rule.Rule, posts, matches *[]reddit.Post) {
@@ -279,8 +280,7 @@ func main() {
 			log.Panic(err)
 		}
 
-		var rules []rule.Rule
-		if err := getRules(&ct.RuleConfigs, &rules); err != nil {
+		if rules, err := getRules(ct.RuleConfigs); err != nil {
 			log.Panic(err)
 		}
 	}
