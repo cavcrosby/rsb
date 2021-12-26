@@ -1,26 +1,38 @@
-package rule
+package ramunderprice
 
 import (
+	"encoding/json"
 	"log"
 	"regexp"
 	"strconv"
 
+	"github.com/cavcrosby/rsb/rule"
 	"github.com/turnage/graw/reddit"
 )
 
 var (
+	defaultPrice int = 0
 	reRamInTitle  = regexp.MustCompile(`(?i)\bRAM\b`)
 	reCostInTitle = regexp.MustCompile(`^\$\d+\.*\d*$`)
 )
 
-type RamUnder100 struct {
+type RamUnderPrice struct {
+	Price int `json:"price"`
 }
 
-func Name(r *RamUnder100) string {
-	return "ramunder100"
+func (r *RamUnderPrice) Name() string {
+	return "ramunderprice"
 }
 
-func Match(post reddit.Post) bool {
+func (r *RamUnderPrice) RegisterConfigs(configs []byte) error {
+	if err := json.Unmarshal(configs, r); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *RamUnderPrice) Match(post reddit.Post) bool {
 	if reRamInTitle.FindStringIndex(post.Title) == nil {
 		return false
 	}
@@ -37,9 +49,17 @@ func Match(post reddit.Post) bool {
 
 	if cost, err := strconv.Atoi(regexp.MustCompile(`\d+$`).FindAllString(costs[0], -1)[0]); err != nil {
 		log.Panic(err)
-	} else if cost > 100 {
+	} else if cost > r.Price {
 		return false
 	}
 
 	return true
+}
+
+func init() {
+	var ramUnderPrice *RamUnderPrice = &RamUnderPrice{
+		Price: defaultPrice,	
+	}
+
+	rule.RegisterRule(ramUnderPrice)
 }
