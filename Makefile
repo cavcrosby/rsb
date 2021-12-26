@@ -13,6 +13,7 @@ target_exec_path = ${BUILD_DIR_PATH}/${TARGET_EXEC}
 # executables
 GO = go
 JQ = jq
+ADDLICENSE = addlicense
 executables = \
 	${JQ}\
 	${GO}
@@ -99,7 +100,7 @@ ${INSTALL_TOOLS}:
 
 .PHONY: ${ADD_LICENSE}
 ${ADD_LICENSE}:
->	@[ -n "${COPYRIGHT_HOLDERS}" ] || { echo "COPYRIGHT_HOLDERS was not passed into make"; exit 1; }
+>	@[ -n "${COPYRIGHT_HOLDERS}" ] || { echo "make: COPYRIGHT_HOLDERS was not passed into make"; exit 1; }
 >	${ADDLICENSE} -l mit -c "${COPYRIGHT_HOLDERS}" ${src}
 
 .PHONY: ${CLEAN}
