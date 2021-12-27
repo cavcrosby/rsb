@@ -77,4 +77,3 @@ func GetRuleRegistry() *RuleRegistry {
 func init() {
 	ruleRegistry = make(RuleRegistry)
 }
-

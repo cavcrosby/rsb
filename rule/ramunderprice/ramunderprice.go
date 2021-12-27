@@ -30,9 +30,9 @@ import (
 )
 
 var (
-	defaultPrice int = 0
-	reRamInTitle  = regexp.MustCompile(`(?i)\bRAM\b`)
-	reCostInTitle = regexp.MustCompile(`^\$\d+\.*\d*$`)
+	defaultPrice  int = 0
+	reRamInTitle      = regexp.MustCompile(`(?i)\bRAM\b`)
+	reCostInTitle     = regexp.MustCompile(`^\$\d+\.*\d*$`)
 )
 
 type RamUnderPrice struct {
@@ -77,7 +77,7 @@ func (r *RamUnderPrice) Match(post reddit.Post) bool {
 
 func init() {
 	var ramUnderPrice *RamUnderPrice = &RamUnderPrice{
-		Price: defaultPrice,	
+		Price: defaultPrice,
 	}
 
 	rule.RegisterRule(ramUnderPrice)
