@@ -67,6 +67,7 @@ const (
 )
 
 var (
+	defaultAgentPath = strings.Join([]string{"./", progName, ".agent"}, "")
 	progConfig string = strings.Join([]string{progName, ".json"}, "")
 )
 
@@ -93,6 +94,8 @@ type RuleConfig struct {
 
 // A type used to store command flag argument values and argument values.
 type progConfigs struct {
+	agentPath        string
+	altConfigPath		string
 	exportConfig     bool
 	helpFlagPassedIn bool
 	showConfigPath   bool
@@ -130,8 +133,22 @@ func (pconfs *progConfigs) parseCmdArgs() {
 			&cli.BoolFlag{
 				Name:        "show-config-path",
 				Aliases:     []string{"s"},
-				Usage:       "displays the filesystem path to the program's configuration file",
+				Usage:       "displays the filesystem path to the program's default configuration file",
 				Destination: &pconfs.showConfigPath,
+			},
+			&cli.PathFlag{
+				Name:        "config-path",
+				Aliases:     []string{"c"},
+				Value:       pconfs.altConfigPath,
+				Usage:       "alternative `PATH` for the program's configuration file",
+				Destination: &pconfs.altConfigPath,
+			},
+			&cli.PathFlag{
+				Name:        "agent-path",
+				Aliases:     []string{"a"},
+				Value:       defaultAgentPath,
+				Usage:       "alternative `PATH` for agent configuration file",
+				Destination: &pconfs.agentPath,
 			},
 		},
 		Action: func(context *cli.Context) error {
@@ -264,6 +281,9 @@ func main() {
 	case pconfs.showConfigPath:
 		fmt.Println(progConfigPath)
 	default:
+		if pconfs.altConfigPath != "" {
+			progConfigPath = pconfs.altConfigPath
+		}
 		progConfigFd, err := os.Open(progConfigPath)
 		if err != nil {
 			log.Panic(err)
