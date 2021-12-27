@@ -1,13 +1,9 @@
-# github.com/bmatcuk/doublestar/v4 v4.0.2
-## explicit; go 1.16
 # github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
 ## explicit; go 1.12
 github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/golang/protobuf v1.3.2
 ## explicit
 github.com/golang/protobuf/proto
-# github.com/google/addlicense v1.0.0
-## explicit; go 1.13
 # github.com/mitchellh/mapstructure v1.1.2
 ## explicit
 github.com/mitchellh/mapstructure
@@ -35,8 +31,6 @@ golang.org/x/net/context/ctxhttp
 golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-## explicit
 # google.golang.org/appengine v1.4.0
 ## explicit
 google.golang.org/appengine/internal
