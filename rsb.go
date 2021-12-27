@@ -67,8 +67,8 @@ const (
 )
 
 var (
-	defaultAgentPath = strings.Join([]string{"./", progName, ".agent"}, "")
-	progConfig string = strings.Join([]string{progName, ".json"}, "")
+	defaultAgentPath        = strings.Join([]string{"./", progName, ".json"}, "")
+	progConfig       string = strings.Join([]string{progName, ".json"}, "")
 )
 
 // A custom callback handler in the event improper cli flag/flag arguments or
@@ -95,10 +95,11 @@ type RuleConfig struct {
 // A type used to store command flag argument values and argument values.
 type progConfigs struct {
 	agentPath        string
-	altConfigPath		string
+	altConfigPath    string
 	exportConfig     bool
 	helpFlagPassedIn bool
 	showConfigPath   bool
+	subredditName    string
 }
 
 // Interpret the command arguments passed in. Saving particular flag/flag arguments
@@ -119,7 +120,7 @@ func (pconfs *progConfigs) parseCmdArgs() {
 	app := &cli.App{
 		Name:            progName,
 		Usage:           "searchs Reddit posts and matches posts that meet known rules",
-		UsageText:       strings.Join([]string{progName, " [global options]"}, ""),
+		UsageText:       strings.Join([]string{progName, " [global options] SUBREDDIT_NAME"}, ""),
 		Description:     strings.Join([]string{progName, " - Reddit Search Bot"}, ""),
 		HideHelpCommand: true,
 		OnUsageError:    CustomOnUsageErrorFunc,
@@ -152,11 +153,12 @@ func (pconfs *progConfigs) parseCmdArgs() {
 			},
 		},
 		Action: func(context *cli.Context) error {
-			if context.NArg() > 0 {
+			if context.NArg() < 1 && !pconfs.showConfigPath && !pconfs.exportConfig {
 				cli.ShowAppHelp(context)
-				os.Exit(1)
+				log.Panic(errors.New("SUBREDDIT_NAME argument is required"))
 			}
 
+			pconfs.subredditName = context.Args().Get(0)
 			return nil
 		},
 	}
@@ -207,15 +209,21 @@ func getRules(rcs []RuleConfig) ([]rule.Rule, error) {
 	return rules, nil
 }
 
-// func matchRules(rules *[]rule.Rule, posts, matches *[]reddit.Post) {
-// 	for _, post := range *posts {
-// 		for _, rule := range *rules {
-// 			if rule.Match(post) {
-// 				*matches = append(*matches, post)
-// 			}
-// 		}
-// 	}
-// }
+// Test each reddit post passed in to see if a post matches any of the rules passed
+// in. If a post matches any rule, then said post will be aggregated with others
+// that match a rule.
+func matchPosts(rules []rule.Rule, posts []*reddit.Post) []reddit.Post {
+	var matches []reddit.Post
+	for _, post := range posts {
+		for _, rule := range rules {
+			if rule.Match(*post) {
+				matches = append(matches, *post)
+			}
+		}
+	}
+
+	return matches
+}
 
 // Creates the default program configuration file.
 func createDefaultProgConfig(progConfigDirPath, progConfig string) error {
@@ -299,30 +307,33 @@ func main() {
 		if err := json.Unmarshal(progConfigBytes, &ct); err != nil {
 			log.Panic(err)
 		}
-
-		if rules, err := getRules(ct.RuleConfigs); err != nil {
+		rules, err := getRules(ct.RuleConfigs)
+		if err != nil {
 			log.Panic(err)
 		}
+
+		bot, err := reddit.NewBotFromAgentFile(pconfs.agentPath, 0)
+		if err != nil {
+			log.Panic(fmt.Errorf("%v: failed to create bot handle: %v", progName, err))
+		}
+
+		var subreddit string = strings.Join([]string{"/r/", pconfs.subredditName}, "")
+		harvest, err := bot.Listing(subreddit, "")
+		if err != nil {
+			log.Panic(fmt.Errorf("%v: failed to fetch %v: %v", progName, subreddit, err))
+		}
+
+		// DISCUSS(cavcrosby): any posts that are sticked/pinned to the subreddit should
+		// only be included once when running the same ruleset over the "x" number of
+		// posts.
+		// DISCUSS(cavcrosby): perhaps have the bot continuously poll the latest 10 posts
+		// from a subreddit after however much time passes?
+		// DISCUSS(cavcrosby): each subreddit might require a different polling strategy
+		// than from another. Look into implementing this per subreddit.
+		matches := matchPosts(rules, harvest.Posts[:10])
+		for _, post := range matches {
+			fmt.Printf("[%s] posted [%s]\n", post.Author, post.Title)
+		}
+		os.Exit(0)
 	}
-
-	// ctData, err := json.Marshal(ct)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// fmt.Println(string(ctData))
-
-	bot, err := reddit.NewBotFromAgentFile("rsb.agent", 0)
-	if err != nil {
-		log.Panic(fmt.Errorf("Failed to create bot handle: %v", err))
-	}
-
-	// harvest, err := bot.Listing("/r/buildapcsales/", "")
-	// if err != nil {
-	// 	log.Panic(fmt.Errorf("Failed to fetch /r/buildapcsales/: %v", err))
-	// }
-
-	// for _, post := range harvest.Posts[:5] {
-	// 	fmt.Printf("[%s] posted [%s]\n", post.Author, post.Title)
-	// }
-	os.Exit(0)
 }
