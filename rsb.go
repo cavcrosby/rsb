@@ -276,7 +276,7 @@ func matchPosts(rules []rule.Rule, posts []*reddit.Post) map[string]*reddit.Post
 	var matches = make(map[string]*reddit.Post)
 	for _, post := range posts {
 		for _, rule := range rules {
-			if rule.Match(*post) {
+			if rule.Match(post) {
 				matches[rule.Name()] = post
 			}
 		}

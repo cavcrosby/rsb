@@ -33,7 +33,7 @@ var (
 type Rule interface {
 	Name() string
 	RegisterConfigs(configs []byte) error
-	Match(post reddit.Post) bool
+	Match(post *reddit.Post) bool
 }
 
 // A type to map rules keyed by their name.

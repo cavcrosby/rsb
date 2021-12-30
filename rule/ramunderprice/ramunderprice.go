@@ -51,7 +51,7 @@ func (r *RamUnderPrice) RegisterConfigs(configs []byte) error {
 	return nil
 }
 
-func (r *RamUnderPrice) Match(post reddit.Post) bool {
+func (r *RamUnderPrice) Match(post *reddit.Post) bool {
 	if reRamInTitle.FindStringIndex(post.Title) == nil {
 		return false
 	}
