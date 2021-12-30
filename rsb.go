@@ -115,6 +115,19 @@ func (g *postGather) Post(p *reddit.Post) error {
 }
 
 // A type used to represent the configuration file of the program.
+//
+// Example (includes RuleConfig(s)):
+// {
+//     "rules": [
+//         {
+//             "id": "ramunderprice",
+//             "configs": {
+//                 "price": 100
+//             }
+//         }
+//     ]
+// }
+//
 type configTree struct {
 	RuleConfigs []RuleConfig `json:"rules"`
 }
