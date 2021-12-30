@@ -26,9 +26,11 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"log"
+	"net/smtp"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	_ "github.com/cavcrosby/rsb/register"
@@ -103,7 +105,7 @@ func (g *postGather) getPostQueue() []*reddit.Post {
 
 // Determine if post threshold is met in the post queue.
 func (g *postGather) atPostThreshold() bool {
-	return len(g.postQueue) == g.postThreshold
+	return len(g.postQueue) >= g.postThreshold
 }
 
 func (g *postGather) Post(p *reddit.Post) error {
@@ -118,6 +120,11 @@ func (g *postGather) Post(p *reddit.Post) error {
 //
 // Example (includes RuleConfig(s)):
 // {
+//     "sendmail_from": "foo@bar.com",
+//     "sendmail_to": "baz@bar.com",
+//     "password": "foobarbaz",
+//     "smtp_addr": "smtp.bar.com",
+//     "smtp_port": "1234",
 //     "rules": [
 //         {
 //             "id": "ramunderprice",
@@ -129,7 +136,12 @@ func (g *postGather) Post(p *reddit.Post) error {
 // }
 //
 type configTree struct {
-	RuleConfigs []RuleConfig `json:"rules"`
+	SendMailFrom string       `json:"sendmail_from"`
+	SendMailTo   string       `json:"sendmail_to"`
+	Password     string       `json:"password"`
+	SmtpAddr     string       `json:"smtp_addr"`
+	SmtpPort     string       `json:"smtp_port"`
+	RuleConfigs  []RuleConfig `json:"rules"`
 }
 
 // A type used to serve as a frontend to allow certain rules to be selected
@@ -260,17 +272,42 @@ func getRules(rcs []RuleConfig) ([]rule.Rule, error) {
 // Test each reddit post passed in to see if a post matches any of the rules passed
 // in. If a post matches any rule, then said post will be aggregated with others
 // that match a rule.
-func matchPosts(rules []rule.Rule, posts []*reddit.Post) []reddit.Post {
-	var matches []reddit.Post
+func matchPosts(rules []rule.Rule, posts []*reddit.Post) map[string]*reddit.Post {
+	var matches = make(map[string]*reddit.Post)
 	for _, post := range posts {
 		for _, rule := range rules {
 			if rule.Match(*post) {
-				matches = append(matches, *post)
+				matches[rule.Name()] = post
 			}
 		}
 	}
 
 	return matches
+}
+
+// Send a test email to the intended recipient to ensure smtp is functional.
+// Returns the authentication struct for the sender.
+func initSmtp(ct configTree) (smtp.Auth, error) {
+	// Set up authentication information.
+	auth := smtp.PlainAuth("", ct.SendMailFrom, ct.Password, ct.SmtpAddr)
+
+	// Connect to the server, authenticate, set the sender and recipient,
+	// and send the email all in one step.
+	to := []string{ct.SendMailTo}
+	msg := []byte(strings.Join(
+		[]string{
+			fmt.Sprintf("To: %v", ct.SendMailTo),
+			fmt.Sprintf("Subject: Initializing %v", progName),
+			"",
+			"foo",
+		},
+		"\r\n",
+	))
+	if err := smtp.SendMail(ct.SmtpAddr+":"+ct.SmtpPort, auth, ct.SendMailFrom, to, msg); err != nil {
+		return nil, err
+	}
+
+	return auth, nil
 }
 
 // Creates the default program configuration file.
@@ -355,6 +392,11 @@ func main() {
 		if err := json.Unmarshal(progConfigBytes, &ct); err != nil {
 			log.Panic(err)
 		}
+		smtpAuth, err := initSmtp(ct)
+		if err != nil {
+			log.Panic(fmt.Errorf("%v: failed to initialize smtp: %v", progName, err))
+		}
+
 		rules, err := getRules(ct.RuleConfigs)
 		if err != nil {
 			log.Panic(err)
@@ -373,6 +415,7 @@ func main() {
 			postThreshold: defaultPostThreshold,
 		}
 
+		to := []string{ct.SendMailTo}
 		for {
 			if _, wait, err := graw.Run(handler, bot, cfg); err != nil {
 				log.Panic(fmt.Errorf("%v: graw run failed", progName))
@@ -381,11 +424,46 @@ func main() {
 			}
 
 			if handler.atPostThreshold() {
-				matches := matchPosts(rules, handler.getPostQueue())
-				for _, post := range matches {
-					fmt.Printf("[%s] posted [%s]\n", post.Author, post.Title)
-				}
+				postQueue := handler.getPostQueue()
 				handler.flushPostQueue()
+				var postUrls []string
+				for i, post := range postQueue {
+					postUrls = append(postUrls, strconv.Itoa(i+1)+". "+post.URL)
+				}
+
+				msgStr := strings.Join(
+					append(
+						[]string{
+							fmt.Sprintf("To: %v", ct.SendMailTo),
+							fmt.Sprintf("Subject: %v Report: \"%v\"", progName, pconfs.subredditName),
+							"",
+							"Posts:",
+						},
+						postUrls...,
+					),
+					"\r\n",
+				)
+
+				matches := matchPosts(rules, handler.getPostQueue())
+				var matchUrls []string
+				var matchCounter int = 1
+				for ruleId, post := range matches {
+					matchUrls = append(matchUrls, strconv.Itoa(matchCounter)+"("+ruleId+"). "+post.URL)
+					matchCounter += 1
+				}
+
+				msg := []byte(msgStr + strings.Join(
+					append(
+						[]string{
+							"Matches:",
+						},
+						matchUrls...,
+					),
+					"\r\n",
+				))
+				if err := smtp.SendMail(ct.SmtpAddr+":"+ct.SmtpPort, smtpAuth, ct.SendMailFrom, to, msg); err != nil {
+					log.Panic(err)
+				}
 			}
 		}
 	}
