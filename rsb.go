@@ -33,6 +33,7 @@ import (
 
 	_ "github.com/cavcrosby/rsb/register"
 	"github.com/cavcrosby/rsb/rule"
+	"github.com/turnage/graw"
 	"github.com/turnage/graw/reddit"
 	"github.com/urfave/cli/v2"
 )
@@ -67,7 +68,9 @@ const (
 )
 
 var (
-	defaultAgentPath        = strings.Join([]string{"./", progName, ".json"}, "")
+	defaultAgentPath        = strings.Join([]string{"./", progName, ".agent"}, "")
+	defaultPostThreshold = 5
+	errfoundPost error = errors.New("found a reddit post") 
 	progConfig       string = strings.Join([]string{progName, ".json"}, "")
 )
 
@@ -77,6 +80,38 @@ var CustomOnUsageErrorFunc cli.OnUsageErrorFunc = func(context *cli.Context, err
 	cli.ShowAppHelp(context)
 	log.Panic(err)
 	return err
+}
+
+// A type that represents a post handler for graw. Mainly meant to store posts
+// received from the 'subreddit' event stream.
+type postGather struct {
+	bot           reddit.Bot
+	postQueue []*reddit.Post
+	postThreshold int
+	stickyPostQueue map[string]string
+}
+
+// Empty out the post queue.
+func (g *postGather) flushPostQueue() {
+	g.postQueue = nil
+}
+
+// Return the post queue.
+func (g *postGather) getPostQueue() []*reddit.Post {
+	return g.postQueue
+}
+
+// Determine if post threshold is met in the post queue.
+func (g *postGather) atPostThreshold() bool {
+	return len(g.postQueue) == g.postThreshold
+}
+
+func (g *postGather) Post(p *reddit.Post) error {
+	if _, ok := g.stickyPostQueue[p.ID]; !p.Stickied || !ok {
+		g.postQueue = append(g.postQueue, p)
+	}
+
+	return errfoundPost
 }
 
 // A type used to represent the configuration file of the program.
@@ -317,23 +352,28 @@ func main() {
 			log.Panic(fmt.Errorf("%v: failed to create bot handle: %v", progName, err))
 		}
 
-		var subreddit string = strings.Join([]string{"/r/", pconfs.subredditName}, "")
-		harvest, err := bot.Listing(subreddit, "")
-		if err != nil {
-			log.Panic(fmt.Errorf("%v: failed to fetch %v: %v", progName, subreddit, err))
-		}
-
-		// DISCUSS(cavcrosby): any posts that are sticked/pinned to the subreddit should
-		// only be included once when running the same ruleset over the "x" number of
-		// posts.
-		// DISCUSS(cavcrosby): perhaps have the bot continuously poll the latest 10 posts
-		// from a subreddit after however much time passes?
 		// DISCUSS(cavcrosby): each subreddit might require a different polling strategy
 		// than from another. Look into implementing this per subreddit.
-		matches := matchPosts(rules, harvest.Posts[:10])
-		for _, post := range matches {
-			fmt.Printf("[%s] posted [%s]\n", post.Author, post.Title)
+		cfg := graw.Config{Subreddits: []string{pconfs.subredditName}}
+		handler := &postGather{
+			bot: bot,
+			postThreshold: defaultPostThreshold,
 		}
-		os.Exit(0)
+
+		for {
+			if _, wait, err := graw.Run(handler, bot, cfg); err != nil {
+				log.Panic(fmt.Errorf("%v: graw run failed", progName))
+			} else if err := wait(); err != errfoundPost {
+				log.Panic(fmt.Errorf("%v: an error occurred for the graw post handler: %v", progName, err))
+			}
+	
+			if handler.atPostThreshold() {
+				matches := matchPosts(rules, handler.getPostQueue())
+				for _, post := range matches {
+					fmt.Printf("[%s] posted [%s]\n", post.Author, post.Title)
+				}
+				handler.flushPostQueue()
+			}	
+		}
 	}
 }

@@ -15,7 +15,12 @@ github.com/russross/blackfriday/v2
 github.com/shurcooL/sanitized_anchor_name
 # github.com/turnage/graw v0.0.0-20201204201853-a177df1b5c91
 ## explicit; go 1.13
+github.com/turnage/graw
+github.com/turnage/graw/botfaces
 github.com/turnage/graw/reddit
+github.com/turnage/graw/streams
+github.com/turnage/graw/streams/internal/monitor
+github.com/turnage/graw/streams/internal/rsort
 # github.com/turnage/redditproto v0.0.0-20151223012412-afedf1b6eddb
 ## explicit
 github.com/turnage/redditproto
