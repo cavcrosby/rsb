@@ -68,10 +68,10 @@ const (
 )
 
 var (
-	defaultAgentPath        = strings.Join([]string{"./", progName, ".agent"}, "")
-	defaultPostThreshold = 5
-	errfoundPost error = errors.New("found a reddit post") 
-	progConfig       string = strings.Join([]string{progName, ".json"}, "")
+	defaultAgentPath            = strings.Join([]string{"./", progName, ".agent"}, "")
+	defaultPostThreshold        = 5
+	errfoundPost         error  = errors.New("found a reddit post")
+	progConfig           string = strings.Join([]string{progName, ".json"}, "")
 )
 
 // A custom callback handler in the event improper cli flag/flag arguments or
@@ -85,9 +85,9 @@ var CustomOnUsageErrorFunc cli.OnUsageErrorFunc = func(context *cli.Context, err
 // A type that represents a post handler for graw. Mainly meant to store posts
 // received from the 'subreddit' event stream.
 type postGather struct {
-	bot           reddit.Bot
-	postQueue []*reddit.Post
-	postThreshold int
+	bot             reddit.Bot
+	postQueue       []*reddit.Post
+	postThreshold   int
 	stickyPostQueue map[string]string
 }
 
@@ -356,7 +356,7 @@ func main() {
 		// than from another. Look into implementing this per subreddit.
 		cfg := graw.Config{Subreddits: []string{pconfs.subredditName}}
 		handler := &postGather{
-			bot: bot,
+			bot:           bot,
 			postThreshold: defaultPostThreshold,
 		}
 
@@ -366,14 +366,14 @@ func main() {
 			} else if err := wait(); err != errfoundPost {
 				log.Panic(fmt.Errorf("%v: an error occurred for the graw post handler: %v", progName, err))
 			}
-	
+
 			if handler.atPostThreshold() {
 				matches := matchPosts(rules, handler.getPostQueue())
 				for _, post := range matches {
 					fmt.Printf("[%s] posted [%s]\n", post.Author, post.Title)
 				}
 				handler.flushPostQueue()
-			}	
+			}
 		}
 	}
 }
