@@ -89,11 +89,6 @@ ${UNINSTALL}:
 ${MKAGENT_FILE}:
 >	eval "$${GRAW_AGENT_FILE}" > "${AGENT_FILE_PATH}"
 
-# DISCUSS(cavcrosby): in other golang projects, go development tools were part of
-# 'go.mod' and inside the vendor directory. Reproducing this setup is a pain and
-# I'd like investigate what direction this project and others should take.
-# One discussion that might be worth coming back to when addressing this topic:
-# https://github.com/golang/go/issues/25922
 .PHONY: ${INSTALL_TOOLS}
 ${INSTALL_TOOLS}:
 >	${GO} install -mod mod ${DEV_GO_TOOLS}
