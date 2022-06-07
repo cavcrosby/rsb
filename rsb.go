@@ -181,7 +181,7 @@ func (pconfs *progConfigs) parseCmdArgs() {
 		Name:            progName,
 		Usage:           "searches Reddit posts and matches posts that meet known rules",
 		UsageText:       strings.Join([]string{progName, " [global options] SUBREDDIT_NAME"}, ""),
-		Description:     strings.Join([]string{progName, " - Reddit Search Bot"}, ""),
+		Description:     strings.Join([]string{progName, " - A (for) Reddit Search Bot"}, ""),
 		HideHelpCommand: true,
 		OnUsageError:    CustomOnUsageErrorFunc,
 		Flags: []cli.Flag{

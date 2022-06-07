@@ -1,1 +1,1 @@
-# Reddit Search Bot
+# A (for) Reddit Search Bot
