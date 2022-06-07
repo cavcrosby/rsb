@@ -179,7 +179,7 @@ func (pconfs *progConfigs) parseCmdArgs() {
 
 	app := &cli.App{
 		Name:            progName,
-		Usage:           "searchs Reddit posts and matches posts that meet known rules",
+		Usage:           "searches Reddit posts and matches posts that meet known rules",
 		UsageText:       strings.Join([]string{progName, " [global options] SUBREDDIT_NAME"}, ""),
 		Description:     strings.Join([]string{progName, " - Reddit Search Bot"}, ""),
 		HideHelpCommand: true,
